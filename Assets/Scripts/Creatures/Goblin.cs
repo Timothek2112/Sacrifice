@@ -1,3 +1,4 @@
+using Assets.Scripts.Creatures.States;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -11,6 +12,7 @@ public class Goblin : MonoBehaviour, IDamagable
     [SerializeField] GameObject attackFx;
     [SerializeField] List<GameObject> drop = new List<GameObject>();
     public int dropCount = 5;
+    IState currentState;
 
     private void Awake()
     {
@@ -37,6 +39,12 @@ public class Goblin : MonoBehaviour, IDamagable
         Destroy(gameObject);
     }
 
+    private void Update()
+    {
+        if(currentState != null)
+            currentState.Process();
+    }
+
     void FixedUpdate()
     {
         body.velocity *= 0.9f;
@@ -48,4 +56,6 @@ public class Goblin : MonoBehaviour, IDamagable
             force = 1000;
         body.AddForce(direction.normalized * force, ForceMode2D.Force);
     }
+
+    
 }

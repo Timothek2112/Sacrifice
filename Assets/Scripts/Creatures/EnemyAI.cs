@@ -1,4 +1,5 @@
 using Aoiti.Pathfinding;
+using Assets.Scripts.Creatures.States;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -9,7 +10,7 @@ public class EnemyAI : MonoBehaviour
     Transform playerPos;
     Rigidbody2D _rb;
     public float speed;
-    List<Vector2> path = new List<Vector2>();
+    [SerializeField] List<Vector2> path = new List<Vector2>();
     [SerializeField] float gridSize = 1;
     [SerializeField] LayerMask obstacles;
     Pathfinder<Vector2> pathfinder;
@@ -17,8 +18,11 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] bool searchShortcut = false;
     bool pathNeedUpdate = true;
     float timeBeforeUpdate = 0.2f;
+    IState currentState;
+
     private void Awake()
     {
+        EnterState(new Idle(this));
         playerPos = GameObject.FindGameObjectWithTag("Player").transform;
         _rb = GetComponent<Rigidbody2D>();
         pathfinder = new Pathfinder<Vector2>(GetDistance, GetNeighbourNodes, 1000);
@@ -26,7 +30,7 @@ public class EnemyAI : MonoBehaviour
 
     private void FixedUpdate()
     {
-        Process();
+        currentState.Process();
     }
 
     IEnumerator UpdatePath()
@@ -37,7 +41,7 @@ public class EnemyAI : MonoBehaviour
         pathNeedUpdate = true;
     }
 
-    void Process()
+    public void ChasePlayerProcess()
     {
         if (pathNeedUpdate)
         {
@@ -45,12 +49,12 @@ public class EnemyAI : MonoBehaviour
         }
         if (path.Count > 0)
         {
-            if((Vector2)transform.position == path[0])
+            Vector2 dirToPlayer = (path[0] - (Vector2)transform.position).normalized;
+            _rb.velocity = new Vector2(dirToPlayer.x * speed, dirToPlayer.y * speed);
+            if (((Vector2)transform.position - path[0]).sqrMagnitude < speed * speed)
             {
                 path.RemoveAt(0);
             }
-            Vector2 dirToPlayer = (path[0] - (Vector2)transform.position).normalized;
-            _rb.velocity = new Vector2(dirToPlayer.x * speed, dirToPlayer.y * speed);
         }
     }
 
@@ -89,6 +93,7 @@ public class EnemyAI : MonoBehaviour
         Vector2 closestNode = GetClosestNode(transform.position);
         if (pathfinder.GenerateAstarPath(closestNode, GetClosestNode(target), out path)) //Generate path between two points on grid that are close to the transform position and the assigned target.
         {
+            Debug.Log("a");
             if (searchShortcut && path.Count > 0)
                 this.path = ShortenPath(path);
             else
@@ -121,5 +126,18 @@ public class EnemyAI : MonoBehaviour
         }
         newPath.Add(path[path.Count - 1]);
         return newPath;
+    }
+
+    public void EnterState(IState state)
+    {
+        if(currentState != null)
+            currentState.Exit();
+        currentState = state;
+        currentState.Enter();
+    }
+
+    public void Jump(Vector2 direction, float force)
+    {
+
     }
 }
