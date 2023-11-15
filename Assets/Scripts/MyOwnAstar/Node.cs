@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace MyOwnAstar
 {
+    [Serializable]
     internal class Node : IComparable<Node>
     {
         public float fullNumber

@@ -1,8 +1,9 @@
-using Aoiti.Pathfinding;
 using Assets.Scripts.Creatures.States;
 using MyOwnAstar;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Runtime.InteropServices.WindowsRuntime;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
@@ -14,7 +15,7 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] List<Vector2> path = new List<Vector2>();
     [SerializeField] float gridSize = 1;
     [SerializeField] LayerMask obstacles;
-    Pathfinder pathfinder;
+    [SerializeField] Pathfinder pathfinder;
     [SerializeField] bool snapToGrid = false;
     [SerializeField] bool searchShortcut = false;
     bool pathNeedUpdate = true;
@@ -26,7 +27,9 @@ public class EnemyAI : MonoBehaviour
         EnterState(new Idle(this));
         playerPos = GameObject.FindGameObjectWithTag("Player").transform;
         _rb = GetComponent<Rigidbody2D>();
-        pathfinder = new Pathfinder(gameObject, obstacles);
+        pathfinder.origin = gameObject;
+        pathfinder.obstacles = obstacles;
+        pathfinder.gridSize = gridSize;
     }
 
     private void FixedUpdate()
@@ -34,30 +37,13 @@ public class EnemyAI : MonoBehaviour
         currentState.Process();
     }
 
-    IEnumerator UpdatePath()
-    {
-        pathNeedUpdate = false;
-        path = pathfinder.FindWayTo(playerPos.position);
-        yield return new WaitForSeconds(timeBeforeUpdate);
-        pathNeedUpdate = true;
-    }
-
     public void ChasePlayerProcess()
     {
-        /*if (pathNeedUpdate)
-        {
-            StartCoroutine(UpdatePath());
-        }*/
-        StartCoroutine(UpdatePath());
-        if (path.Count > 0)
-        {
-            Vector2 dirToPlayer = (path[0] - (Vector2)transform.position).normalized;
-            _rb.velocity = new Vector2(dirToPlayer.x * speed, dirToPlayer.y * speed);
-            if (((Vector2)transform.position - path[0]).sqrMagnitude < speed * speed)
-            {
-                path.RemoveAt(0);
-            }
-        }
+        path = pathfinder.FindWayTo(playerPos.position);
+        if (path == null) return;
+        if (path.Count == 0) return;
+
+        _rb.velocity = (path[0] - (Vector2)gameObject.transform.position).normalized * speed;
     }
 
     public void EnterState(IState state)

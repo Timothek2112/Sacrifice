@@ -56,5 +56,28 @@ namespace MyOwnAstar
             else
                 return 0;
         }
+
+        public static bool operator ==(Point a, Point b)
+        {
+            if (a is null && b is null) return true;
+            if (a is null && !(b is null)) return false;
+            if (b is null && !(a is null)) return false;
+            if (a.position.x > b.position.x - 0.1f && a.position.y > b.position.y - 0.1f && a.position.x < b.position.x + 0.1f && a.position.y < b.position.y + 0.1f)
+            {
+                return true;
+            }
+            return false;
+        }
+        public static bool operator !=(Point a, Point b)
+        {
+            if (a is null && b is null) return false;
+            if (a is null && !(b is null)) return true;
+            if (b is null && !(a is null)) return true;
+            if (a.position.x > b.position.x - 0.1f && a.position.y > b.position.y - 0.1f && a.position.x < b.position.x + 0.1f && a.position.y < b.position.y + 0.1f)
+            {
+                return false;
+            }
+            return true;
+        }
     }
 }

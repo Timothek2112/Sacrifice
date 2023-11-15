@@ -1,15 +1,19 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Xml;
+using Unity.VisualScripting;
 using UnityEngine;
 
 namespace MyOwnAstar
 {
-    internal class Pathfinder
+    internal class Pathfinder : MonoBehaviour
     {
-        GameObject origin;
-        LayerMask obstacles;
-        float gridSize = 1;
-        Graph graph;
+        public GameObject origin;
+        public LayerMask obstacles;
+        [SerializeField] float _gridSize = 1.0f;
+        Vector2 target;
+        public float gridSize { get { return _gridSize;  } set { _gridSize = value; } }
+        [SerializeField] Graph graph;
 
         public Pathfinder(GameObject origin, LayerMask obstacles)
         {
@@ -19,36 +23,29 @@ namespace MyOwnAstar
 
         public List<Vector2> FindWayTo(Vector2 target)
         {
+            this.target = target;
             graph = new Graph(origin.transform.position);
             SortedSet<Point> whitelist = new SortedSet<Point>();
             List<Point> blacklist = new List<Point>();
             whitelist.Add(graph.first);
-            while(whitelist.Count > 0)
+
+            for (int i = 0; i < 100; i++)
             {
-                var current = whitelist.Min;
-                if (blacklist.Contains(current))
-                    continue;
-                ExtendOnLayerFrom(current);
-                foreach(var p in whitelist.Min.connectedTo)
+                Point cur = whitelist.Min;
+                List<Point> newPoints = ExtendOnLayerFrom(cur);
+                blacklist.Add(cur);
+                whitelist.Remove(cur);
+
+                foreach(var point in newPoints)
                 {
-                    float newWayLength = Vector2.Distance(current.position, p.position);
-                    float newEuristicLength = Vector2.Distance(current.position, target);
-                    if(p.from == null || p.fullNumber > newEuristicLength + newWayLength)
-                    {
-                        p.euristicLength = newEuristicLength;
-                        p.wayLength = newWayLength;
-                        p.from = current;
-                    }
-                    if(Vector2.Distance(p.position, GetClosestNode(target)) <= 10)
-                    {
-                        return WayBack(p);
-                    }
-                    if(!blacklist.Contains(p))
-                        whitelist.Add(p);
+                    if (blacklist.Contains(point))
+                        continue;
+                    whitelist.Add(point);
                 }
-                whitelist.Remove(current);
-                blacklist.Add(current);
+
+                if ((target - cur.position).magnitude < 5) return WayBack(cur);
             }
+
             return null;
         }
 
@@ -63,34 +60,64 @@ namespace MyOwnAstar
             return way;
         }
 
-        public void ExtendOnLayerFrom(Point origin)
+        public List<Point> ExtendOnLayerFrom(Point origin)
         {
-            Vector2 pos = GetClosestNode(origin.position);
-            for (int i = -1; i < 2; i++)
+            List<Point> newPoints = new List<Point>();
+            for(int x = -1; x <= 1; x++)
             {
-                for (int j = -1; j < 2; j++)
+                for(int y = -1; y <= 1; y++)
                 {
-                    if (i == 0 && j == 0) continue;
-
-                    Vector2 dir = new Vector2(i, j) * gridSize;
-                    if (!Physics2D.Linecast(pos, pos + dir, obstacles))
-                    {
-                        Vector2 closestNode = GetClosestNode(pos + dir);
-                        var point = graph.Find(closestNode);
-                        if(point != null)
-                        {
-                            if (origin.connectedTo.Contains(point))
-                                continue;
-                            origin.Connect(point);
-                        }
-                        else
-                        {
-                            point = new Point(closestNode);
-                            origin.Connect(point);
-                        }
-                    }
+                    var newPoint = ProcessPositionExtending(origin, x, y);
+                    if (newPoint != null) newPoints.Add(newPoint);
                 }
             }
+            return newPoints;
+        }
+
+        private Point ProcessPositionExtending(Point origin, float x, float y)
+        {
+            if (x == 0 && y == 0) return null;
+            var newPos = ExtendOnGridSize(origin.position, x, y);
+            var existingPoint = graph.Find(newPos);
+            if (existingPoint != null)
+            {
+                RecalculatePointOrigin(existingPoint, origin);
+                return null;
+            }
+            if(Physics2D.Raycast(origin.position, new Vector2(x, y), (origin.position - newPos).magnitude, obstacles))
+            {
+                var newPoint = CreateNewPoint(newPos, origin);
+                return newPoint;
+            }
+            return null;
+        }
+
+        private Vector2 ExtendOnGridSize(Vector2 origin, float x, float y)
+        {
+            float newX = origin.x + x * gridSize;
+            float newY = origin.y + y * gridSize;
+            return new Vector2(newX, newY);
+        }
+
+        private void RecalculatePointOrigin(Point rec, Point newOrigin)
+        {
+            float newWayLength = newOrigin.wayLength + (rec.position - newOrigin.position).magnitude;
+            if (rec.fullNumber > rec.euristicLength + newWayLength)
+            {
+                rec.euristicLength = (target - rec.position).magnitude;
+                rec.wayLength = newOrigin.wayLength + (rec.position - newOrigin.position).magnitude;
+                rec.from = newOrigin;
+            }
+        }
+
+        private Point CreateNewPoint(Vector2 pos, Point origin)
+        {
+            Point newPoint = new Point(pos);
+            graph.Add(newPoint, origin);
+            newPoint.euristicLength = (target - newPoint.position).magnitude;
+            newPoint.wayLength = origin.wayLength + (newPoint.position - origin.position).magnitude;
+            newPoint.from = origin;
+            return newPoint;
         }
 
         Vector2 GetClosestNode(Vector2 target)

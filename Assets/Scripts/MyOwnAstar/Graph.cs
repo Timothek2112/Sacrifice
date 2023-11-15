@@ -8,9 +8,11 @@ using UnityEngine;
 
 namespace MyOwnAstar
 {
+    [Serializable]
     internal class Graph
     {
         public Point first;
+        List<Point> points = new List<Point>();
         public int Count = 0;
 
         public Graph(Vector2 first)
@@ -26,6 +28,7 @@ namespace MyOwnAstar
                 return;
             Count++;
             connectedTo.Connect(p);
+            points.Add(p);
         }
 
         public void Add(Point point, Point connectedTo)
@@ -34,10 +37,12 @@ namespace MyOwnAstar
                 return;
             Count++;
             connectedTo.Connect(point);
+            points.Add(point);
         }
 
         public void Add(Point point, List<Point> connectedTo)
         {
+            points.Add(point);
             foreach(var conn in connectedTo)
             {
                 if (!Contains(conn))
@@ -58,46 +63,17 @@ namespace MyOwnAstar
                 p.Connect(conn);
             }
             Count++;
+            points.Add(p);
         }
 
         public Point Find(Vector2 pos)
         {
-            List<Point> list = new List<Point>();
-            Queue<Point> toSeek = new Queue<Point>();
-            toSeek.Enqueue(first);
-            while (toSeek.Count > 0)
-            {
-                Point p = toSeek.Dequeue();
-                list.Add(p);
-                if (p.position == pos)
-                    return p;
-                foreach (var connected in p.connectedTo)
-                {
-                    if (list.Contains(connected)) continue;
-                    toSeek.Enqueue(connected);
-                }
-            }
-            return null;
+            return points.FirstOrDefault(p => p == new Point(pos));  
         }
 
         public bool Contains(Point point)
         {
-            List<Point> list = new List<Point>();
-            Queue<Point> toSeek = new Queue<Point>();
-            toSeek.Enqueue(first);
-            while(toSeek.Count > 0)
-            {
-                Point p = toSeek.Dequeue();
-                list.Add(p);
-                if (p == point || p.position == point.position)
-                    return true;
-                foreach(var connected in p.connectedTo)
-                {
-                    if(list.Contains(connected)) continue;
-                    toSeek.Enqueue(connected);
-                }
-            }
-            return false;
+            return points.Contains(point);
         }
 
     }
